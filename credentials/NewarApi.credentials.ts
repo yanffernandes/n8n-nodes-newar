@@ -52,5 +52,23 @@ export class NewarApi implements ICredentialType {
 			url: '/v1/me',
 			method: 'GET',
 		},
+		rules: [
+			{
+				type: 'responseCode',
+				properties: {
+					value: 401,
+					message:
+						'Newar rejected the token. Check that it was copied whole, or create a new one in Newar under Settings > API.',
+				},
+			},
+			{
+				type: 'responseCode',
+				properties: {
+					value: 429,
+					message:
+						'This token used its 6,000 requests of the hour. Try again after the top of the hour.',
+				},
+			},
+		],
 	};
 }
