@@ -290,7 +290,7 @@ export function describeNewarError(
 				httpCode,
 				message: 'This idempotency key was already used with different data',
 				description: withNewarSaid(
-					"Newar keeps each key for 24 hours and refuses a different request with the same key. If you set 'Idempotency Key', make it unique for each record, for example the record's ID in the source system. If the node was retried, an expression (such as the current time) may have changed the data between tries.",
+					"Newar keeps each key for 24 hours and refuses a different request with the same key. If the node was retried, the record was already created by the earlier try: an expression (such as the current time) changed the data between tries, so Newar refused to create it twice. If you set 'Idempotency Key', make it unique for each record, for example the record's ID in the source system.",
 					apiMessage,
 				),
 			};

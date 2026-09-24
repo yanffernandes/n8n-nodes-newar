@@ -17,7 +17,7 @@ const SOURCE: IdempotencySource = {
 	itemIndex: 0,
 };
 
-const REQUEST = { method: 'POST', path: '/v1/leads', body: '{"name":"Ana Souza"}' };
+const REQUEST = { method: 'POST', path: '/v1/leads' };
 
 describe('deriveIdempotencyKey', () => {
 	it('gives the same key when n8n retries the same item', () => {
@@ -51,10 +51,10 @@ describe('deriveIdempotencyKey', () => {
 		expect(changed).not.toBe(base);
 	});
 
-	it('changes the key when the request body changes', () => {
+	it('changes the key per endpoint, so one run never replays another route', () => {
 		const base = deriveIdempotencyKey(SOURCE, REQUEST);
 
-		const changed = deriveIdempotencyKey(SOURCE, { ...REQUEST, body: '{"name":"Bia"}' });
+		const changed = deriveIdempotencyKey(SOURCE, { ...REQUEST, path: '/v1/deals' });
 
 		expect(changed).not.toBe(base);
 	});

@@ -303,7 +303,7 @@ export async function createRecord(
 			? customIdempotencyKey(path, customKey)
 			: deriveIdempotencyKey(
 					{ ...context.idempotency, itemIndex },
-					{ method: 'POST', path, body: JSON.stringify(body) },
+					{ method: 'POST', path },
 				);
 	const response = await newarApiRequest.call(this, {
 		method: 'POST',
@@ -352,7 +352,12 @@ export async function updateRecord(
 	return (response.data ?? {}) as IDataObject;
 }
 
-/** Applies Return All / Limit to a list Newar returns whole. */
+/**
+ * Applies Return All / Limit to a list Newar returns whole. Tags, pipelines,
+ * stages, users, custom fields and loss reasons come in one response with
+ * `next_cursor: null` (the API documents them as whole lists), so one request
+ * is complete and Limit only trims the output.
+ */
 export function applyLimit(
 	ctx: IExecuteFunctions,
 	itemIndex: number,

@@ -10,11 +10,14 @@ import { createHash } from 'crypto';
  * visible ASCII characters.
  *
  * The default key is derived from where the request comes from (n8n instance,
- * workflow, execution, node, run and item) and from the request itself. When
- * n8n retries a failed node ("Retry On Fail"), every one of those is the same,
- * so the retry replays instead of duplicating. A second run of the node in the
- * same execution (a loop, or an AI agent calling the tool again) has a new run
- * index or new data, so it creates normally.
+ * workflow, execution, node, run and item) and from the endpoint, never from
+ * the body. When n8n retries a failed node ("Retry On Fail"), every one of
+ * those is the same, so the retry replays instead of duplicating. A body that
+ * changed between tries (an expression such as the current time) keeps the
+ * key: Newar then refuses the retry with `idempotency_key_reused` instead of
+ * creating a second record. A second run of the node in the same execution (a
+ * loop, or an AI agent calling the tool again) has a new run index, so it
+ * creates normally.
  */
 
 export const IDEMPOTENCY_KEY_PATTERN = /^[\x21-\x7e]{1,255}$/;
@@ -32,8 +35,6 @@ export interface IdempotencySource {
 export interface IdempotentRequest {
 	method: string;
 	path: string;
-	/** The exact JSON sent as the request body. */
-	body: string;
 }
 
 function sha256(text: string): string {
@@ -60,7 +61,6 @@ export function deriveIdempotencyKey(
 		String(source.itemIndex),
 		request.method.toUpperCase(),
 		request.path,
-		request.body,
 	].join('\n');
 	return `n8n-${sha256(material).slice(0, 40)}`;
 }

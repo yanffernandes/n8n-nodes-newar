@@ -15,8 +15,13 @@ import type { IDataObject } from 'n8n-workflow';
  */
 
 export const OVERLAP_MS = 2 * 60 * 1000;
-/** Upper bound on remembered event keys, to keep the workflow's static data small. */
-export const MAX_SEEN_KEYS = 2000;
+/**
+ * Keys remembered inside the overlap window. One poll reads up to 10 pages of
+ * 500 records; the cap covers two full polls, so a burst (a spreadsheet import
+ * creating thousands of leads in a minute) is not emitted twice. Keys older
+ * than the window are dropped first, so the cap only matters during a burst.
+ */
+export const MAX_SEEN_KEYS = 10_000;
 export const STATE_VERSION = 1;
 
 export type TriggerEvent =
