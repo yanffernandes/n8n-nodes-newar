@@ -203,7 +203,7 @@ The **Newar** node can be connected to the n8n **AI Agent** as a tool. The defau
 ## Compatibility
 
 - n8n **1.85.0 or later** (the first release whose `n8n-workflow` exports `NodeConnectionTypes`).
-- Built with `@n8n/node-cli` 0.49 and type-checked against `n8n-workflow` 2.40.
+- Built with `@n8n/node-cli` 0.49 and type-checked against `n8n-workflow` 2.40. Installed the way n8n installs community packages and run end to end, against a mock of the Newar API, on n8n 1.85.0 and 2.40.6: operations, retries, errors, the trigger, dropdowns, custom fields and the credential test.
 - Newar API v1.1 or later for `Idempotency-Key` and the `read_only_token` code. On older API versions, creates still work, and a write with a read-only token is still explained correctly.
 - No runtime dependencies. The package passes the n8n community node linter in strict mode (the rules n8n Cloud requires).
 
