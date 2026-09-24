@@ -181,19 +181,6 @@ export async function searchUsers(
 	};
 }
 
-export async function searchLossReasons(
-	this: ILoadOptionsFunctions,
-	filter?: string,
-): Promise<INodeListSearchResult> {
-	const response = await newarApiRequest.call(this, { method: 'GET', path: '/v1/loss-reasons' });
-	const reasons = (response.data as IDataObject[] | undefined) ?? [];
-	return {
-		results: reasons
-			.filter((reason) => matches(filter, reason.label))
-			.map((reason) => ({ name: String(reason.label), value: String(reason.id) })),
-	};
-}
-
 export async function searchTags(
 	this: ILoadOptionsFunctions,
 	filter?: string,
