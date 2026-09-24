@@ -1,0 +1,19 @@
+{
+	"node": "n8n-nodes-newar.newarTrigger",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Sales"],
+	"alias": ["CRM", "Lead", "Deal", "Pipeline", "Task"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://github.com/yanffernandes/n8n-nodes-newar#credentials"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://github.com/yanffernandes/n8n-nodes-newar#newar-trigger"
+			}
+		]
+	}
+}
