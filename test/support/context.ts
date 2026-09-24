@@ -2,6 +2,7 @@ import type {
 	IDataObject,
 	IExecuteFunctions,
 	IHttpRequestOptions,
+	ILoadOptionsFunctions,
 	INode,
 	IPollFunctions,
 } from 'n8n-workflow';
@@ -138,4 +139,22 @@ export function pollContext(
 
 export function locator(value: string) {
 	return { __rl: true, mode: 'id', value };
+}
+
+export function loadOptionsContext(options: CommonOptions & { currentParameters?: IDataObject }) {
+	const { requests, httpRequestWithAuthentication } = requestRecorder(options.respond);
+	const current = options.currentParameters ?? {};
+	const context = {
+		getNode: () => NODE,
+		getCurrentNodeParameter: (name: string, parameterOptions?: { extractValue?: boolean }) => {
+			const value = current[name];
+			return parameterOptions?.extractValue ? locatorValue(value) : value;
+		},
+		getNodeParameter: (name: string, fallback?: unknown) =>
+			name in current ? current[name] : fallback,
+		getCredentials: async () => options.credentials ?? TEST_CREDENTIALS,
+		logger: LOGGER,
+		helpers: { httpRequestWithAuthentication },
+	};
+	return { context: context as unknown as ILoadOptionsFunctions, requests };
 }
