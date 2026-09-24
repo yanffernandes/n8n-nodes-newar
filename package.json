@@ -1,0 +1,63 @@
+{
+	"name": "n8n-nodes-newar",
+	"version": "0.1.0",
+	"description": "n8n nodes for Newar CRM: manage leads, deals, tasks, notes and tags, and trigger workflows on CRM events.",
+	"license": "MIT",
+	"homepage": "https://github.com/yanffernandes/n8n-nodes-newar#readme",
+	"keywords": [
+		"n8n-community-node-package",
+		"n8n",
+		"newar",
+		"crm"
+	],
+	"author": {
+		"name": "Newar",
+		"email": "suporte@newar.com.br",
+		"url": "https://newar.com.br"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/yanffernandes/n8n-nodes-newar.git"
+	},
+	"bugs": {
+		"url": "https://github.com/yanffernandes/n8n-nodes-newar/issues"
+	},
+	"scripts": {
+		"build": "n8n-node build",
+		"build:watch": "tsc --watch",
+		"dev": "n8n-node dev",
+		"lint": "n8n-node lint",
+		"lint:fix": "n8n-node lint --fix",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"typecheck": "tsc --noEmit -p tsconfig.test.json",
+		"release": "n8n-node release",
+		"prepublishOnly": "n8n-node prerelease"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"strict": true,
+		"credentials": [
+			"dist/credentials/NewarApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/Newar/Newar.node.js",
+			"dist/nodes/NewarTrigger/NewarTrigger.node.js"
+		]
+	},
+	"devDependencies": {
+		"@n8n/node-cli": "*",
+		"@types/node": "^22.20.4",
+		"eslint": "9.32.0",
+		"prettier": "3.6.2",
+		"release-it": "^19.0.4",
+		"typescript": "5.9.2",
+		"vitest": "^5.0.1"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	}
+}
