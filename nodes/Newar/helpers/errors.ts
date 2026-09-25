@@ -410,7 +410,7 @@ function describeByStatus(
 	const guidance =
 		statusCode >= 500
 			? 'Newar or the network in between could not answer. Try again in a few moments.'
-			: 'Check the values in this node and the Newar API documentation at https://app.newar.com.br/api.';
+			: 'Check the values in this node. Newar API documentation: https://app.newar.com.br/api';
 	return {
 		code: apiError.code,
 		httpCode,
