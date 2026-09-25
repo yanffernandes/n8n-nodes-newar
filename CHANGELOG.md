@@ -4,6 +4,13 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-09-25
+
+### Changed
+
+- Links to the Newar API documentation, in the README and in the node's error messages, point to its public address, https://app.newar.com.br/api. It opens without a Newar login, and the old address still redirects there.
+- The Newar link in the README and in the package metadata points to https://app.newar.com.br.
+
 ## [0.1.0] - 2026-09-24
 
 First release.

@@ -1,13 +1,13 @@
 # n8n-nodes-newar
 
-This is an [n8n](https://n8n.io/) community node package for **[Newar](https://newar.com.br)**, a CRM for sales teams. It lets your workflows create, read, update, search and delete Newar leads, deals, tasks, notes and tags, and start workflows when something changes in Newar.
+This is an [n8n](https://n8n.io/) community node package for **[Newar](https://app.newar.com.br)**, a CRM for sales teams. It lets your workflows create, read, update, search and delete Newar leads, deals, tasks, notes and tags, and start workflows when something changes in Newar.
 
 The package contains two nodes:
 
 - **Newar**: 34 operations on 11 resources. It also works as a tool for the n8n AI Agent.
 - **Newar Trigger**: starts a workflow when leads, deals, tasks or notes are created or change.
 
-Everything goes through the [Newar public API](https://app.newar.com.br/api-docs), with the same rules, history and automations as the Newar app.
+Everything goes through the [Newar public API](https://app.newar.com.br/api), with the same rules, history and automations as the Newar app.
 
 [Installation](#installation) ·
 [Credentials](#credentials) ·
@@ -222,7 +222,7 @@ Releases are published to npm with provenance by the **Publish** GitHub Actions 
 
 ## Resources
 
-- [Newar API documentation](https://app.newar.com.br/api-docs) (inside the Newar app)
+- [Newar API documentation](https://app.newar.com.br/api) (public, in Portuguese, no Newar login needed)
 - [Newar OpenAPI specification](https://api.newar.com.br/functions/v1/api/v1/openapi.json)
 - [n8n community nodes documentation](https://docs.n8n.io/integrations/#community-nodes)
 - [Issues and feature requests](https://github.com/yanffernandes/n8n-nodes-newar/issues)
