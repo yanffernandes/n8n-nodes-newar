@@ -83,13 +83,15 @@ Use a read-only token for workflows that only read, and for AI agents that shoul
 Notes on how they behave:
 
 - **Create** has the same effects as the app. A new lead enters the first open stage of the first pipeline (or the stage you pick), gets its primary deal when the workspace creates one automatically, and triggers the "lead captured" automations. Newar does not merge duplicates: use **Lead > Search** by email or phone first if you don't want a second lead.
+- **Phone** takes any format, such as `+55 (11) 99999-0000`, `(11) 99999-0000` or `5511999990000`. Newar keeps only the digits, with the country code, and assumes Brazil when it is missing, so a lead from n8n matches the same contact when it writes on WhatsApp. A phone without the area code fails with a message that says how to fix it.
 - **Update** only changes the fields you add under **Update Fields**. A field you add and leave empty is cleared when Newar allows it (email, phone, company, owner, next step, due dates, observations). On a lead, **Tags** replaces the whole list, and an empty list removes every tag. Moving a lead to a stage also moves its primary deal.
 - **Deal > Update** wins (`Won`), loses (`Lost`, with an optional loss reason and comment) or reopens (`Open`) a deal. A won or lost deal only moves to another stage together with **Status: Open**. A lead's **primary deal** (`is_primary`) mirrors the lead: change its title, value, owner and next step with **Lead > Update**.
 - **Delete** is reversible in Newar: the record leaves lists and searches, Newar's support can restore it, and the node returns `{ "id": "...", "deleted": true }`. Deleting a lead also deletes its deals. A lead's primary deal can't be deleted on its own. Only tags that no record uses can be deleted.
 - **Get Many** has **Return All** (reads every page, 500 per request, keeping your filters and sort on every page) and **Limit** (default 50). Leads, deals and tasks have filters (owner, pipeline, stage, tag, status, type, due dates, `Updated Since`/`Updated Before`, up to 100 IDs) and a **Sort** option.
 - **Search** (lead and deal) ignores accents and case, needs at least 2 characters, and adds a `result_score` from 0 to 1 to each result. **Search > Search Records** looks at leads, deals and tasks like the app's search bar and needs at least 3 characters.
 - **Lead > Search** also takes up to 10 values separated by commas, such as `ana souza, ana@example.com, 11999990000`, and returns the leads that match any of them in one request, each with the `result_score` of its best match.
-- **Output**: Get, Get Many and Search of leads, deals and tasks return a **Simplified** record by default (the 10 most useful fields). Choose **Raw** for every field, including custom fields and UTM data, or **Selected Fields** to pick them (the ID is always included).
+- **Deal counts**: every lead carries `deals_count`, `open_deals_count`, `won_deals_count` and `lost_deals_count`, with the same names as Pipedrive. They count only the deals the token owner can see.
+- **Output**: Get, Get Many and Search of leads, deals and tasks return a **Simplified** record by default (the 10 most useful fields, with `open_deals_count` on leads). Choose **Raw** for every field, including custom fields and UTM data, or **Selected Fields** to pick them (the ID is always included).
 
 ### Picking records
 
@@ -195,6 +197,7 @@ With **Continue On Fail** (node setting **On Error: Continue**), a failed item b
 ## Examples
 
 - **Capture leads from a form.** *Form Trigger* > *Newar: Lead > Create*, with **Name**, **Email** and **Phone** mapped from the form, the lead source in **Additional Fields > Source**, and **Options > Idempotency Key** set to the submission ID, so a resubmitted form doesn't create a second lead.
+- **Update the open deal or create one.** *Newar: Lead > Search* by email or phone > *IF* `{{ $json.open_deals_count }}` is greater than 0 > *Newar: Deal > Get Many* filtered by the lead and **Status: Open**, then *Deal > Update*; otherwise *Newar: Deal > Create* for the lead. The count comes with the lead, so the flow skips a request just to find out whether a deal exists, as with Pipedrive's `open_deals_count`.
 - **Celebrate won deals.** *Newar Trigger* (**Deal Won**, filtered by pipeline) > *Newar: Lead > Get* with the deal's `lead_id` > a message to your team chat.
 - **Follow up automatically.** *Newar Trigger* (**Deal Stage Changed**, filtered by the "Proposal sent" stage) > *Newar: Task > Create* for the deal's lead, with a **Due Date** of `{{ $now.plus(2, 'days') }}` and **Additional Fields > Deal** set to the deal's `id`.
 - **Sync to a spreadsheet.** *Schedule Trigger* > *Newar: Lead > Get Many* with **Return All**, **Filters > Updated Since** `{{ $now.minus(1, 'hour') }}` and **Output: Raw** > *Google Sheets: Append or Update Row* keyed by `id`.

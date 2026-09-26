@@ -4,6 +4,12 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-09-26
+
+### Changed
+
+- The README explains the deal counts on leads, the phone in any format and a new example: update the open deal or create one, with `open_deals_count`.
+
 ## [0.3.0] - 2026-09-26
 
 ### Added
