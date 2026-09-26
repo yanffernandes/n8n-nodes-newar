@@ -2,7 +2,8 @@ import type { IDataObject, IExecuteFunctions, INodeExecutionData } from 'n8n-wor
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
 import { InvalidParameterError } from '../helpers/fields';
-import type { ExecutionContext, OperationHandler } from './common';
+import { createUserResolver } from '../helpers/owner';
+import { listUsers, type ExecutionContext, type OperationHandler } from './common';
 import * as customField from './customField';
 import * as deal from './deal';
 import * as lead from './lead';
@@ -58,6 +59,7 @@ export function createExecutionContext(ctx: IExecuteFunctions): ExecutionContext
 			nodeName: node.name,
 			runIndex: readRunIndex(ctx),
 		},
+		resolveUser: createUserResolver(async (itemIndex) => await listUsers.call(ctx, itemIndex)),
 	};
 }
 

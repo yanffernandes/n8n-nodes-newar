@@ -60,13 +60,13 @@ export const dealCreateFields: INodeProperties[] = [
 		description: 'Free-text notes about the deal',
 	},
 	{
-		displayName: 'Owner Name or ID',
+		displayName: 'Owner Email, Name or ID',
 		name: 'ownerId',
 		type: 'options',
 		typeOptions: { loadOptionsMethod: 'getUsers' },
 		default: '',
 		description:
-			'User responsible for the deal. Defaults to the owner of the lead. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			'User responsible for the deal. Defaults to the owner of the lead. Expressions can use the ID, the email or the full name of a Newar user. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 	},
 	{
 		displayName: 'Pipeline Name or ID',
@@ -152,13 +152,13 @@ export const dealUpdateFields: INodeProperties[] = [
 		description: 'Free-text notes about the deal. Leave empty to clear them.',
 	},
 	{
-		displayName: 'Owner Name or ID',
+		displayName: 'Owner Email, Name or ID',
 		name: 'ownerId',
 		type: 'options',
 		typeOptions: { loadOptionsMethod: 'getUsers' },
 		default: '',
 		description:
-			'User responsible for the deal. Leave empty to remove the owner. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			'User responsible for the deal. Leave empty to remove the owner. Expressions can use the ID, the email or the full name of a Newar user. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 	},
 	{
 		displayName: 'Stage Name or ID',

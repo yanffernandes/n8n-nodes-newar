@@ -11,12 +11,15 @@ import { isUuid } from '../helpers/fields';
 import { customIdempotencyKey, deriveIdempotencyKey } from '../helpers/idempotency';
 import type { IdempotencySource } from '../helpers/idempotency';
 import { applyOutput, RECORD_FIELDS, type OutputEntity, type OutputMode } from '../helpers/output';
+import { resolveUserParameters, type NewarUser, type UserResolver } from '../helpers/owner';
 import { newarApiRequest } from '../transport';
 
 /** Per-execution values shared by every item. */
 export interface ExecutionContext {
 	timeZone: string;
 	idempotency: Omit<IdempotencySource, 'itemIndex'>;
+	/** Turns owner and assignee emails or names into user IDs, reading the users at most once. */
+	resolveUser: UserResolver;
 }
 
 export type OperationResult = IDataObject | IDataObject[];
@@ -286,6 +289,27 @@ export function getCollection(
 	itemIndex: number,
 ): IDataObject {
 	return (ctx.getNodeParameter(parameterName, itemIndex, {}) as IDataObject) ?? {};
+}
+
+/** Reads a collection, with an owner or assignee given by email or name turned into a user ID. */
+export async function getCollectionWithUserIds(
+	ctx: IExecuteFunctions,
+	parameterName: string,
+	itemIndex: number,
+	context: ExecutionContext,
+): Promise<IDataObject> {
+	const values = getCollection(ctx, parameterName, itemIndex);
+	return await resolveUserParameters(values, context.resolveUser, itemIndex);
+}
+
+/** Reads the workspace users, which Newar returns whole in one response. */
+export async function listUsers(this: IExecuteFunctions, itemIndex: number): Promise<NewarUser[]> {
+	const response = await newarApiRequest.call(this, {
+		method: 'GET',
+		path: '/v1/users',
+		itemIndex,
+	});
+	return (response.data as NewarUser[] | undefined) ?? [];
 }
 
 /** POSTs a create request with an `Idempotency-Key` and returns the created record. */

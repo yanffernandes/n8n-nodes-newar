@@ -2,7 +2,7 @@ import type { IDataObject, IExecuteFunctions, INodeProperties } from 'n8n-workfl
 
 import { buildBody } from '../../helpers/fields';
 import {
-	getCollection,
+	getCollectionWithUserIds,
 	getRecordId,
 	recordLocator,
 	updateDisplayOptions,
@@ -41,7 +41,7 @@ export async function execute(
 ): Promise<IDataObject> {
 	const id = getRecordId(this, 'taskId', itemIndex, 'Task');
 	const body = buildBody(
-		getCollection(this, 'updateFields', itemIndex),
+		await getCollectionWithUserIds(this, 'updateFields', itemIndex, context),
 		TASK_BODY_FIELDS,
 		'update',
 		context.timeZone,

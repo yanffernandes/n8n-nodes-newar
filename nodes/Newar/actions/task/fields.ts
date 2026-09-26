@@ -52,13 +52,13 @@ export const TASK_PRIORITY_OPTIONS: INodePropertyOptions[] = [
 
 export const taskCreateFields: INodeProperties[] = [
 	{
-		displayName: 'Assignee Name or ID',
+		displayName: 'Assignee Email, Name or ID',
 		name: 'assignedToId',
 		type: 'options',
 		typeOptions: { loadOptionsMethod: 'getUsers' },
 		default: '',
 		description:
-			'User who does the task. Defaults to the user of the token. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			'User who does the task. Defaults to the user of the token. Expressions can use the ID, the email or the full name of a Newar user. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 	},
 	{
 		displayName: 'Deal Name or ID',
@@ -106,13 +106,13 @@ export const taskCreateFields: INodeProperties[] = [
 
 export const taskUpdateFields: INodeProperties[] = [
 	{
-		displayName: 'Assignee Name or ID',
+		displayName: 'Assignee Email, Name or ID',
 		name: 'assignedToId',
 		type: 'options',
 		typeOptions: { loadOptionsMethod: 'getUsers' },
 		default: '',
 		description:
-			'User who does the task. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			'User who does the task. Expressions can use the ID, the email or the full name of a Newar user. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 	},
 	{
 		displayName: 'Description',

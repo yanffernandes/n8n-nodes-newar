@@ -2,14 +2,18 @@ import type { IExecuteFunctions, INodeProperties } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
 /** The "Search Term" parameter shared by the searches. */
-export function searchTermProperty(description: string, minLength: number): INodeProperties {
+export function searchTermProperty(
+	description: string,
+	minLength: number,
+	placeholder = 'e.g. ana souza',
+): INodeProperties {
 	return {
 		displayName: 'Search Term',
 		name: 'term',
 		type: 'string',
 		required: true,
 		default: '',
-		placeholder: 'e.g. ana souza',
+		placeholder,
 		description: `${description}. At least ${minLength} characters.`,
 	};
 }

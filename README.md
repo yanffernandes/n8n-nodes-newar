@@ -88,6 +88,7 @@ Notes on how they behave:
 - **Delete** is reversible in Newar: the record leaves lists and searches, Newar's support can restore it, and the node returns `{ "id": "...", "deleted": true }`. Deleting a lead also deletes its deals. A lead's primary deal can't be deleted on its own. Only tags that no record uses can be deleted.
 - **Get Many** has **Return All** (reads every page, 500 per request, keeping your filters and sort on every page) and **Limit** (default 50). Leads, deals and tasks have filters (owner, pipeline, stage, tag, status, type, due dates, `Updated Since`/`Updated Before`, up to 100 IDs) and a **Sort** option.
 - **Search** (lead and deal) ignores accents and case, needs at least 2 characters, and adds a `result_score` from 0 to 1 to each result. **Search > Search Records** looks at leads, deals and tasks like the app's search bar and needs at least 3 characters.
+- **Lead > Search** also takes up to 10 values separated by commas, such as `ana souza, ana@example.com, 11999990000`, and returns the leads that match any of them in one request, each with the `result_score` of its best match.
 - **Output**: Get, Get Many and Search of leads, deals and tasks return a **Simplified** record by default (the 10 most useful fields). Choose **Raw** for every field, including custom fields and UTM data, or **Selected Fields** to pick them (the ID is always included).
 
 ### Picking records
@@ -95,6 +96,8 @@ Notes on how they behave:
 Fields that point at one record (Lead, Deal, Task, Note, Tag, Pipeline, Stage, User) let you choose **From List** or enter the ID (**By ID**). In the list, typing 2 or more characters searches leads and deals by name, email, phone or title; otherwise it shows the most recently updated records. Newar IDs are UUIDs, and the node checks them before calling Newar.
 
 Dropdowns inside **Additional Fields**, **Update Fields** and **Filters** (owner, pipeline, stage, tags, loss reason, the deal of a task) load from Newar. The stage list follows the pipeline you picked in the same node.
+
+**Owner Email, Name or ID** (leads and deals) and **Assignee Email, Name or ID** (tasks) also take the email or the full name of a Newar user in an expression, such as `{{ $json.ownerEmail }}`: names must be complete but ignore accents and case, and when no user or more than one user matches, the node fails and says what to use instead.
 
 ### Custom fields
 

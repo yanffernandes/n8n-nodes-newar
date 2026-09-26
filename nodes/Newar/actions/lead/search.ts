@@ -12,7 +12,11 @@ import {
 import { readSearchTerm, searchTermProperty } from '../search/term';
 
 const properties: INodeProperties[] = [
-	searchTermProperty('Text to look for in names, companies, emails and phones', 2),
+	searchTermProperty(
+		'Text to look for in names, companies, emails and phones. Separate up to 10 values with commas, such as a name, an email and a phone, to find the leads that match any of them',
+		2,
+		'e.g. ana souza, ana@example.com, 11999990000',
+	),
 	{
 		displayName: 'Exact Match',
 		name: 'exactMatch',

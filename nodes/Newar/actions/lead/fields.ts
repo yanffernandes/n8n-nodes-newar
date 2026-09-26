@@ -77,13 +77,13 @@ export const leadCreateFields: INodeProperties[] = [
 		description: 'Free-text notes about the lead',
 	},
 	{
-		displayName: 'Owner Name or ID',
+		displayName: 'Owner Email, Name or ID',
 		name: 'ownerId',
 		type: 'options',
 		typeOptions: { loadOptionsMethod: 'getUsers' },
 		default: '',
 		description:
-			'User responsible for the lead. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			'User responsible for the lead. Expressions can use the ID, the email or the full name of a Newar user. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 	},
 	{
 		displayName: 'Phone',
@@ -190,13 +190,13 @@ export const leadUpdateFields: INodeProperties[] = [
 		description: 'Free-text notes about the lead. Leave empty to clear them.',
 	},
 	{
-		displayName: 'Owner Name or ID',
+		displayName: 'Owner Email, Name or ID',
 		name: 'ownerId',
 		type: 'options',
 		typeOptions: { loadOptionsMethod: 'getUsers' },
 		default: '',
 		description:
-			'User responsible for the lead. Leave empty to remove the owner. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			'User responsible for the lead. Leave empty to remove the owner. Expressions can use the ID, the email or the full name of a Newar user. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 	},
 	{
 		displayName: 'Phone',

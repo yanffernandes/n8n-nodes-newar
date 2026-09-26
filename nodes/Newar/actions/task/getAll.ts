@@ -3,7 +3,7 @@ import type { IDataObject, IExecuteFunctions, INodeProperties } from 'n8n-workfl
 import { buildQuery } from '../../helpers/fields';
 import { newarApiRequestAllItems } from '../../transport';
 import {
-	getCollection,
+	getCollectionWithUserIds,
 	limitProperty,
 	outputProperties,
 	readPaging,
@@ -27,13 +27,13 @@ const properties: INodeProperties[] = [
 		default: {},
 		options: [
 			{
-				displayName: 'Assignee Name or ID',
+				displayName: 'Assignee Email, Name or ID',
 				name: 'assignedToId',
 				type: 'options',
 				typeOptions: { loadOptionsMethod: 'getUsers' },
 				default: '',
 				description:
-					'Only tasks of this user. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+					'Only tasks of this user. Expressions can use the ID, the email or the full name of a Newar user. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Deal ID',
@@ -127,8 +127,9 @@ export async function execute(
 	itemIndex: number,
 	context: ExecutionContext,
 ): Promise<IDataObject[]> {
+	const filters = await getCollectionWithUserIds(this, 'filters', itemIndex, context);
 	const qs = {
-		...buildQuery(getCollection(this, 'filters', itemIndex), TASK_FILTERS, context.timeZone),
+		...buildQuery(filters, TASK_FILTERS, context.timeZone),
 		...readSort(this, itemIndex),
 	};
 	const tasks = await newarApiRequestAllItems.call(

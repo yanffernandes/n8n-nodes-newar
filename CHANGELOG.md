@@ -4,6 +4,17 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-09-25
+
+### Added
+
+- **Lead > Search** looks for several values at once: separate up to 10 values with commas in **Search Term**, such as `ana souza, ana@example.com, 11999990000`. A lead is returned when it matches any of them, with the `result_score` of its best match. The whole term still needs 2 to 200 characters.
+- The owner of leads and deals and the assignee of tasks also take the email or the full name of a Newar user in an expression, such as `{{ $json.ownerEmail }}`, in Create, Update and the Get Many filters. Emails are compared without case, and names whole, without accents or case. When no user or more than one user matches, the item fails with a message that shows the value and says what to use instead, and nothing is created or changed. The node reads the Newar users at most once per execution, and only when a value is not an ID.
+
+### Changed
+
+- These fields are now named **Owner Email, Name or ID** and **Assignee Email, Name or ID**. Existing workflows keep working: a user picked from the list is still sent as its ID.
+
 ## [0.1.1] - 2026-09-25
 
 ### Changed

@@ -1,4 +1,4 @@
-import type { IDataObject, IHttpRequestOptions } from 'n8n-workflow';
+import type { IDataObject, IHttpRequestOptions, INodeProperties } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 import { describe, expect, it } from 'vitest';
 
@@ -66,6 +66,26 @@ function headersOf(request: IHttpRequestOptions): Record<string, string> {
 	return (request.headers ?? {}) as Record<string, string>;
 }
 
+const USERS = [
+	{ id: USER_ID, name: 'Kawã Lima', email: 'kawa@example.com', role: 'member', app_role: 'sdr' },
+	{
+		id: '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d',
+		name: 'Bia Rocha',
+		email: 'bia@example.com',
+		role: 'admin',
+		app_role: 'supervisor',
+	},
+];
+
+/** Answers `GET /v1/users` with USERS and every other request with `data`. */
+function withUsers(data: unknown): Responder {
+	return (request) => (request.url.endsWith('/v1/users') ? ok(USERS) : ok(data));
+}
+
+function describeRequest(request: IHttpRequestOptions): string {
+	return `${request.method ?? 'GET'} ${request.url}`;
+}
+
 async function run(parameters: IDataObject | IDataObject[], respond: Responder, extra = {}) {
 	const { context, requests } = executeContext({ parameters, respond, ...extra });
 	const output = await router.call(context);
@@ -92,6 +112,21 @@ describe('Newar node description', () => {
 		const usableAsTool = node.description.usableAsTool;
 
 		expect(usableAsTool).toBe(true);
+	});
+
+	it('names every user dropdown after the email, name or ID it takes', () => {
+		const node = new Newar();
+
+		const userDropdowns = node.description.properties
+			.flatMap((property) =>
+				property.type === 'collection' ? (property.options as INodeProperties[]) : [property],
+			)
+			.filter((property) => property.typeOptions?.loadOptionsMethod === 'getUsers');
+
+		expect(userDropdowns).toHaveLength(9);
+		expect(new Set(userDropdowns.map((property) => property.displayName))).toEqual(
+			new Set(['Owner Email, Name or ID', 'Assignee Email, Name or ID']),
+		);
 	});
 });
 
@@ -265,6 +300,21 @@ describe('Lead > Search', () => {
 
 		await expect(router.call(context)).rejects.toThrow("'Search Term' needs at least 2 characters");
 	});
+
+	it('sends several values separated by commas in one request', async () => {
+		const parameters = {
+			resource: 'lead',
+			operation: 'search',
+			term: 'ana souza, ana@example.com, 11999990000',
+			returnAll: false,
+			limit: 5,
+		};
+
+		const { requests } = await run(parameters, () => ok({ items: [] }));
+
+		expect(requests).toHaveLength(1);
+		expect(requests[0].qs).toMatchObject({ term: 'ana souza, ana@example.com, 11999990000' });
+	});
 });
 
 describe('Deal > Update', () => {
@@ -297,6 +347,88 @@ describe('Deal > Update', () => {
 			method: 'PATCH',
 			body: { status: 'lost', close_reason: 'Chose another school' },
 		});
+	});
+});
+
+describe('owner and assignee by email or name', () => {
+	it('creates the lead with the owner_id of the user an email points to', async () => {
+		const parameters = createLeadParameters({ additionalFields: { ownerId: 'Kawa@Example.com' } });
+
+		const { requests } = await run(parameters, withUsers(LEAD));
+
+		expect(requests.map(describeRequest)).toEqual([
+			'GET https://api.test/api/v1/users',
+			'POST https://api.test/api/v1/leads',
+		]);
+		expect(requests[1].body).toMatchObject({ owner_id: USER_ID });
+	});
+
+	it('updates the deal with the owner_id of the user an email points to', async () => {
+		const parameters = {
+			resource: 'deal',
+			operation: 'update',
+			dealId: locator(DEAL_ID),
+			updateFields: { ownerId: 'kawa@example.com' },
+			dealCustomFieldsUpdate: { mappingMode: 'defineBelow', value: null },
+		};
+
+		const { requests } = await run(parameters, withUsers({ id: DEAL_ID }));
+
+		expect(requests[1]).toMatchObject({ method: 'PATCH', body: { owner_id: USER_ID } });
+	});
+
+	it('assigns the task to the user a full name points to', async () => {
+		const parameters = {
+			resource: 'task',
+			operation: 'create',
+			leadId: locator(LEAD_ID),
+			title: 'Call Ana',
+			additionalFields: { assignedToId: 'kawa lima' },
+			options: {},
+		};
+
+		const { requests } = await run(parameters, withUsers({ id: 't1' }));
+
+		expect(requests[1].body).toMatchObject({ assigned_to_id: USER_ID });
+	});
+
+	it('filters Get Many by the owner a full name points to', async () => {
+		const parameters = {
+			resource: 'lead',
+			operation: 'getAll',
+			returnAll: false,
+			limit: 50,
+			filters: { ownerId: 'Kawã Lima' },
+		};
+
+		const { requests } = await run(parameters, withUsers([]));
+
+		expect(requests[1].qs).toMatchObject({ owner_id: USER_ID });
+	});
+
+	it('reads the users once per execution', async () => {
+		const parameters = createLeadParameters({ additionalFields: { ownerId: 'kawa@example.com' } });
+
+		const { requests } = await run([parameters, parameters], withUsers(LEAD), { items: 2 });
+
+		expect(requests.map(describeRequest)).toEqual([
+			'GET https://api.test/api/v1/users',
+			'POST https://api.test/api/v1/leads',
+			'POST https://api.test/api/v1/leads',
+		]);
+	});
+
+	it('fails with a NodeOperationError before writing when no user matches', async () => {
+		const parameters = createLeadParameters({ additionalFields: { ownerId: 'zoe@example.com' } });
+		const { context, requests } = executeContext({ parameters, respond: withUsers(LEAD) });
+
+		const error = await router.call(context).catch((caught: unknown) => caught);
+
+		expect(error).toBeInstanceOf(NodeOperationError);
+		expect((error as NodeOperationError).message).toBe(
+			"No Newar user matches 'zoe@example.com'. Use the user ID, email or full name.",
+		);
+		expect(requests.map(describeRequest)).toEqual(['GET https://api.test/api/v1/users']);
 	});
 });
 

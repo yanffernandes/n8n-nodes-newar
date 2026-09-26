@@ -3,7 +3,7 @@ import type { IDataObject, IExecuteFunctions, INodeProperties } from 'n8n-workfl
 import { buildQuery } from '../../helpers/fields';
 import { newarApiRequestAllItems } from '../../transport';
 import {
-	getCollection,
+	getCollectionWithUserIds,
 	limitProperty,
 	outputProperties,
 	readPaging,
@@ -36,13 +36,13 @@ const properties: INodeProperties[] = [
 				description: 'Only these leads. Up to 100 IDs, separated by commas.',
 			},
 			{
-				displayName: 'Owner Name or ID',
+				displayName: 'Owner Email, Name or ID',
 				name: 'ownerId',
 				type: 'options',
 				typeOptions: { loadOptionsMethod: 'getUsers' },
 				default: '',
 				description:
-					'Only leads of this owner. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+					'Only leads of this owner. Expressions can use the ID, the email or the full name of a Newar user. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Pipeline Name or ID',
@@ -119,8 +119,9 @@ export async function execute(
 	itemIndex: number,
 	context: ExecutionContext,
 ): Promise<IDataObject[]> {
+	const filters = await getCollectionWithUserIds(this, 'filters', itemIndex, context);
 	const qs = {
-		...buildQuery(getCollection(this, 'filters', itemIndex), LEAD_FILTERS, context.timeZone),
+		...buildQuery(filters, LEAD_FILTERS, context.timeZone),
 		...readSort(this, itemIndex),
 	};
 	const leads = await newarApiRequestAllItems.call(

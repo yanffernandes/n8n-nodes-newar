@@ -3,7 +3,7 @@ import type { IDataObject, IExecuteFunctions, INodeProperties } from 'n8n-workfl
 import { buildBody } from '../../helpers/fields';
 import {
 	createRecord,
-	getCollection,
+	getCollectionWithUserIds,
 	getRequiredText,
 	idempotencyOptions,
 	updateDisplayOptions,
@@ -47,7 +47,7 @@ export async function execute(
 	const body: IDataObject = {
 		name: getRequiredText(this, 'name', itemIndex, 'Name'),
 		...buildBody(
-			getCollection(this, 'additionalFields', itemIndex),
+			await getCollectionWithUserIds(this, 'additionalFields', itemIndex, context),
 			LEAD_BODY_FIELDS,
 			'create',
 			context.timeZone,

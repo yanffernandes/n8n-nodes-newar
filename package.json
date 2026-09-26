@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-newar",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"description": "n8n nodes for Newar CRM: manage leads, deals, tasks, notes and tags, and trigger workflows on CRM events.",
 	"license": "MIT",
 	"homepage": "https://github.com/yanffernandes/n8n-nodes-newar#readme",
