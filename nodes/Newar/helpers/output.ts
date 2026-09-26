@@ -31,6 +31,10 @@ export const RECORD_FIELDS: Record<OutputEntity, string[]> = {
 		'custom_fields',
 		'tag_ids',
 		'utm',
+		'deals_count',
+		'open_deals_count',
+		'won_deals_count',
+		'lost_deals_count',
 		'created_at',
 		'updated_at',
 	],
@@ -77,6 +81,8 @@ export const RECORD_FIELDS: Record<OutputEntity, string[]> = {
 };
 
 export const SIMPLIFIED_FIELDS: Record<OutputEntity, string[]> = {
+	// open_deals_count comes by default: a flow decides between updating the
+	// open deal and creating one without another request, as with Pipedrive.
 	lead: [
 		'id',
 		'name',
@@ -86,7 +92,7 @@ export const SIMPLIFIED_FIELDS: Record<OutputEntity, string[]> = {
 		'stage_id',
 		'owner_id',
 		'value_estimate',
-		'next_step',
+		'open_deals_count',
 		'updated_at',
 	],
 	deal: [

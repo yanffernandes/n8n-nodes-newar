@@ -90,8 +90,9 @@ export const leadCreateFields: INodeProperties[] = [
 		name: 'phone',
 		type: 'string',
 		default: '',
-		placeholder: 'e.g. 5511999990000',
-		description: 'Primary phone number, with country and area code',
+		placeholder: 'e.g. +55 (11) 99999-0000',
+		description:
+			'Primary phone number in any format, such as +55 (11) 99999-0000, (11) 99999-0000 or 5511999990000. Newar keeps only the digits, with the country code, and assumes Brazil when it is missing.',
 	},
 	{
 		displayName: 'Pipeline Name or ID',
@@ -203,8 +204,9 @@ export const leadUpdateFields: INodeProperties[] = [
 		name: 'phone',
 		type: 'string',
 		default: '',
-		placeholder: 'e.g. 5511999990000',
-		description: 'Primary phone number, with country and area code. Leave empty to clear it.',
+		placeholder: 'e.g. +55 (11) 99999-0000',
+		description:
+			'Primary phone number in any format, such as +55 (11) 99999-0000, (11) 99999-0000 or 5511999990000. Newar keeps only the digits, with the country code, and assumes Brazil when it is missing. Leave empty to clear it.',
 	},
 	{
 		displayName: 'Source',

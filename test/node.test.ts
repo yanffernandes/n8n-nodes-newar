@@ -35,6 +35,10 @@ const LEAD = {
 	custom_fields: { alunos: 850 },
 	tag_ids: [],
 	utm: {},
+	deals_count: 2,
+	open_deals_count: 1,
+	won_deals_count: 1,
+	lost_deals_count: 0,
 	created_at: '2026-09-24T13:45:00.000Z',
 	updated_at: '2026-09-24T13:45:00.000Z',
 };
@@ -198,6 +202,14 @@ describe('Lead > Get', () => {
 
 		expect(Object.keys(output[0].json)).toHaveLength(10);
 		expect(output[0].json.custom_fields).toBeUndefined();
+	});
+
+	it('brings the open deals count in the default output so a flow can pick update or create', async () => {
+		const parameters = { resource: 'lead', operation: 'get', leadId: locator(LEAD_ID) };
+
+		const { output } = await run(parameters, () => ok(LEAD));
+
+		expect(output[0].json.open_deals_count).toBe(1);
 	});
 
 	it('returns every field with the Raw output', async () => {

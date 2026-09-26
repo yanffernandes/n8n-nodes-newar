@@ -4,6 +4,17 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-09-26
+
+### Added
+
+- Leads carry their deal counts, with the same names as Pipedrive: `deals_count` (all), `open_deals_count` (open), `won_deals_count` (won) and `lost_deals_count` (lost). A flow can decide between updating the open deal and creating a new one without another request. They count only the deals the token owner can see, and Selected Fields offers all four.
+
+### Changed
+
+- The simplified lead output brings `open_deals_count` in place of `next_step`. Use the Raw output, or add Next Step in Selected Fields, to keep reading it.
+- **Phone** takes any format, such as `+55 (11) 99999-0000`, `(11) 99999-0000` or `5511999990000`. Newar keeps only the digits, with the country code, and assumes Brazil when it is missing. A phone without the area code fails with a message that says how to fix it.
+
 ## [0.2.0] - 2026-09-25
 
 ### Added
