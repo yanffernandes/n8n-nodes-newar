@@ -4,6 +4,20 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-10-16
+
+Needs the Newar API 2.2.0 or newer, which adds `GET /v1/leads/match` and the `contact_exists` error.
+
+### Added
+
+- **Lead > Search** has a **Search By** option. **Text** is the search you already use, unchanged. **Contact** finds the lead that owns a phone, email or Instagram handle with the same rule Newar uses to refuse a duplicate contact: phone in any format, with or without the 9th digit, the country code or punctuation, in the main and the additional phones, and email without case. Instagram matches the lead's Instagram conversations and, with **Instagram Field** set, that custom field in its common written forms, such as `@ana`, `instagram.com/ana` or `https://www.instagram.com/ana/`; comparisons on the custom field are case sensitive, as in the Newar app. Leads without a value in the selected custom field are skipped. **Match** returns leads that match any value, or only leads that match every filled field. Each lead comes with `matched_by` and `matches`, which say what matched. Leaving every contact field empty fails the item instead of returning nothing.
+- **Conditions** filters leads with the operators of the Newar filters, such as is, contains, starts with and ends with, in groups: conditions inside a group must all match, and a lead matches when any group matches, so (A and B) or C is two groups. Fields are the Newar lead filter fields and the workspace custom fields. A condition that needs a value and has none fails the item, so an empty sheet cell never matches every lead. Custom-field conditions treat missing values as nonmatches for positive operators and matches for negative operators.
+- **Lead > Create** has **If Lead Already Exists**. **Stop With Error** is the default and keeps the old behavior. **Return Existing Lead** continues the workflow with the lead that already owns the phone or email, marked with `already_existed: true` and `matched_by`. Created leads get `already_existed: false` in this mode.
+
+### Changed
+
+- When a phone or email already belongs to another lead, the error names that lead and shows its ID, phone, email, which field matched, a link to open it in Newar and the next step. With Continue On Fail, the error item also carries `code`, `existing_lead` and `matched_by`.
+
 ## [0.3.1] - 2026-09-26
 
 ### Changed

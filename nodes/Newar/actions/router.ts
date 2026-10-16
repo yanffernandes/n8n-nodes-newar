@@ -1,6 +1,7 @@
 import type { IDataObject, IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
+import { parseApiErrorBody } from '../helpers/errors';
 import { InvalidParameterError } from '../helpers/fields';
 import { createUserResolver } from '../helpers/owner';
 import { listUsers, type ExecutionContext, type OperationHandler } from './common';
@@ -86,6 +87,14 @@ function errorJson(error: NodeApiError | NodeOperationError): IDataObject {
 	const json: IDataObject = { error: error.message };
 	if (error.description) json.description = error.description;
 	if (error instanceof NodeApiError && error.httpCode) json.httpCode = error.httpCode;
+	if (error instanceof NodeApiError) {
+		const parsed = parseApiErrorBody(error.errorResponse);
+		if (parsed.code === 'contact_exists') {
+			json.code = parsed.code;
+			if (parsed.matchedBy !== undefined) json.matched_by = parsed.matchedBy;
+			if (parsed.existingLead !== undefined) json.existing_lead = parsed.existingLead;
+		}
+	}
 	return json;
 }
 

@@ -27,6 +27,22 @@ describe('toIsoDateTime', () => {
 		expect(result).toBe('2026-09-30T03:00:00.000Z');
 	});
 
+	it('keeps years below 100 when normalizing a valid calendar date', () => {
+		const value = '0001-01-01';
+
+		const result = toIsoDateTime(value, 'UTC');
+
+		expect(result).toBe('0001-01-01T00:00:00.000Z');
+	});
+
+	it('uses the first instant of a local date when daylight saving skips midnight', () => {
+		const value = '2018-11-04';
+
+		const result = toIsoDateTime(value, 'America/Sao_Paulo');
+
+		expect(result).toBe('2018-11-04T03:00:00.000Z');
+	});
+
 	it('accepts a space between date and time', () => {
 		const value = '2026-09-30 14:00';
 

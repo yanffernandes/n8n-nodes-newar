@@ -82,14 +82,16 @@ Use a read-only token for workflows that only read, and for AI agents that shoul
 
 Notes on how they behave:
 
-- **Create** has the same effects as the app. A new lead enters the first open stage of the first pipeline (or the stage you pick), gets its primary deal when the workspace creates one automatically, and triggers the "lead captured" automations. Newar does not merge duplicates: use **Lead > Search** by email or phone first if you don't want a second lead.
+- **Create** has the same effects as the app. A new lead enters the first open stage of the first pipeline (or the stage you pick), gets its primary deal when the workspace creates one automatically, and triggers the "lead captured" automations. Newar does not merge duplicates: use **Lead > Search** by email or phone first if you don't want a second lead. When the phone or email already belongs to another lead, **Lead > Create** fails with that lead's data and the next step, or, with **If Lead Already Exists** set to **Return Existing Lead**, returns the existing lead so the workflow continues. A created lead carries `already_existed: false`; a returned one carries `already_existed: true` and `matched_by`.
 - **Phone** takes any format, such as `+55 (11) 99999-0000`, `(11) 99999-0000` or `5511999990000`. Newar keeps only the digits, with the country code, and assumes Brazil when it is missing, so a lead from n8n matches the same contact when it writes on WhatsApp. A phone without the area code fails with a message that says how to fix it.
-- **Update** only changes the fields you add under **Update Fields**. A field you add and leave empty is cleared when Newar allows it (email, phone, company, owner, next step, due dates, observations). On a lead, **Tags** replaces the whole list, and an empty list removes every tag. Moving a lead to a stage also moves its primary deal.
+- **Update** only changes the fields you add under **Update Fields**. A field you add and leave empty is cleared when Newar allows it (email, phone, company, owner, next step, due dates, observations). On a lead, **Tags** replaces the whole list, and an empty list removes every tag. Moving a lead to a stage also moves its primary deal. A phone or email that already belongs to another lead fails with that lead's data and the next step.
 - **Deal > Update** wins (`Won`), loses (`Lost`, with an optional loss reason and comment) or reopens (`Open`) a deal. A won or lost deal only moves to another stage together with **Status: Open**. A lead's **primary deal** (`is_primary`) mirrors the lead: change its title, value, owner and next step with **Lead > Update**.
 - **Delete** is reversible in Newar: the record leaves lists and searches, Newar's support can restore it, and the node returns `{ "id": "...", "deleted": true }`. Deleting a lead also deletes its deals. A lead's primary deal can't be deleted on its own. Only tags that no record uses can be deleted.
 - **Get Many** has **Return All** (reads every page, 500 per request, keeping your filters and sort on every page) and **Limit** (default 50). Leads, deals and tasks have filters (owner, pipeline, stage, tag, status, type, due dates, `Updated Since`/`Updated Before`, up to 100 IDs) and a **Sort** option.
 - **Search** (lead and deal) ignores accents and case, needs at least 2 characters, and adds a `result_score` from 0 to 1 to each result. **Search > Search Records** looks at leads, deals and tasks like the app's search bar and needs at least 3 characters.
-- **Lead > Search** also takes up to 10 values separated by commas, such as `ana souza, ana@example.com, 11999990000`, and returns the leads that match any of them in one request, each with the `result_score` of its best match.
+- **Lead > Search > Search By: Text** keeps the existing name, company, email and phone search. It takes up to 10 values separated by commas, such as `ana souza, ana@example.com, 11999990000`, and returns the leads that match any of them with the `result_score` of the best match.
+- **Search By: Contact** matches phone numbers in any format, with or without the 9th digit, country code or punctuation; emails ignore case. Instagram usernames or URLs match the lead's Instagram conversations and, with an **Instagram Field**, that custom field in its common written forms, such as `@ana`, `instagram.com/ana` or `https://www.instagram.com/ana/`; comparisons on the custom field are case sensitive, as in the Newar app. Leads without a value in the selected custom field are skipped. **Match: Any Value** returns every lead found by Newar. **Match: All Filled Fields** keeps only leads that matched every contact field with a value. Each result includes `matched_by` and `matches` from Newar.
+- **Search By: Conditions** combines conditions in each **Filter Group** with AND, then combines groups with OR. It supports the lead fields and custom fields available in the workspace, follows the app's operators, and keeps text comparisons case-sensitive. Custom-field conditions treat missing values as nonmatches for positive operators and matches for negative operators. Use it for rules such as `(X and Y) or Z`. For phone or email matching in any format, use **Search By: Contact**.
 - **Deal counts**: every lead carries `deals_count`, `open_deals_count`, `won_deals_count` and `lost_deals_count`, with the same names as Pipedrive. They count only the deals the token owner can see.
 - **Output**: Get, Get Many and Search of leads, deals and tasks return a **Simplified** record by default (the 10 most useful fields, with `open_deals_count` on leads). Choose **Raw** for every field, including custom fields and UTM data, or **Selected Fields** to pick them (the ID is always included).
 
@@ -182,6 +184,7 @@ Newar answers errors with a stable code and a Portuguese message. The node shows
 | `forbidden` | Your Newar user is not allowed to do this |
 | `not_found` | The lead (deal, task, ...) was not found in Newar |
 | `validation_error` | Newar rejected the value of *field, field* (with each problem in the description) |
+| `contact_exists` | This phone (or email) already belongs to the lead "Name" (with its ID, contact, match and the next step) |
 | `conflict` | Newar refused the change because of the record's current state |
 | `plan_limit_reached` | The Newar plan limit was reached |
 | `tag_in_use` | The tag is still in use |
@@ -192,7 +195,7 @@ Newar answers errors with a stable code and a Portuguese message. The node shows
 | `bad_request` | Newar could not read the request |
 | `internal_error` | Newar had an internal problem |
 
-With **Continue On Fail** (node setting **On Error: Continue**), a failed item becomes `{ "error": "...", "description": "...", "httpCode": "404" }` and the node goes on with the next item.
+With **Continue On Fail** (node setting **On Error: Continue**), a failed item becomes `{ "error": "...", "description": "...", "httpCode": "404" }` and the node goes on with the next item. A `contact_exists` item also carries `code`, `matched_by` and `existing_lead`, so the workflow can route on it.
 
 ## Examples
 

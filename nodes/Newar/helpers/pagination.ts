@@ -22,6 +22,15 @@ export interface CollectOptions {
 	limit?: number;
 	/** Largest page the endpoint accepts (500 for lists, 100 for searches). */
 	maxPageSize: number;
+	/** Maps a repeated cursor to the caller's error model. */
+	onRepeatedCursor?: () => void;
+}
+
+export class PaginationError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'PaginationError';
+	}
 }
 
 /** Reads pages until the limit is reached or the list ends. */
@@ -39,7 +48,13 @@ export async function collectItems<T>(
 		const pageSize = Math.min(maxPageSize, limit - items.length);
 		const page = await fetchPage(cursor, pageSize);
 		items.push(...page.items.slice(0, limit - items.length));
-		if (!page.nextCursor || page.items.length === 0 || seenCursors.has(page.nextCursor)) break;
+		if (!page.nextCursor) break;
+		if (seenCursors.has(page.nextCursor)) {
+			options.onRepeatedCursor?.();
+			throw new PaginationError(
+				'Newar returned a repeated pagination cursor, so the results may be incomplete.',
+			);
+		}
 		seenCursors.add(page.nextCursor);
 		cursor = page.nextCursor;
 	}
@@ -78,9 +93,10 @@ export async function collectWithinBudget<T>(
 		const page = await fetchPage(cursor, options.pageSize);
 		items.push(...page.items);
 		if (options.stopWhen?.(page.items)) return { items, complete: true };
-		if (!page.nextCursor || page.items.length === 0 || seenCursors.has(page.nextCursor)) {
+		if (!page.nextCursor) {
 			return { items, complete: true };
 		}
+		if (seenCursors.has(page.nextCursor)) return { items, complete: false };
 		seenCursors.add(page.nextCursor);
 		cursor = page.nextCursor;
 	}

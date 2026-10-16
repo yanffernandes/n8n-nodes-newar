@@ -1,4 +1,5 @@
-import type { Failure } from 'n8n-workflow';
+import type { Failure, IDataObject } from 'n8n-workflow';
+import { NodeApiError } from 'n8n-workflow';
 
 /**
  * Turns a failed Newar API response into an English message for n8n.
@@ -18,6 +19,12 @@ export interface ApiErrorBody {
 	code?: string;
 	message?: string;
 	details?: ApiErrorDetail[];
+	/** `contact_exists` only: the ID of the lead that already owns the contact. */
+	leadId?: string;
+	/** `contact_exists` only: which contact matched, such as `phone` or `email`. */
+	matchedBy?: string[];
+	/** `contact_exists` only: the full lead, unless the token cannot see it. */
+	existingLead?: IDataObject;
 }
 
 export type HeaderBag = Record<string, unknown>;
@@ -31,6 +38,8 @@ export interface FailedResponse {
 export interface ErrorContext {
 	/** HTTP method of the request, to tell reads from writes. */
 	method?: string;
+	/** True for read endpoints that use POST for filtering or pagination. */
+	isRead?: boolean;
 	/** Scope of the token in use, read from its prefix. Never the token itself. */
 	tokenScope?: TokenScope;
 	/** Current time in epoch milliseconds. Injected for tests. */
@@ -138,10 +147,11 @@ export function parseApiErrorBody(body: unknown): ApiErrorBody {
 		}
 	}
 	if (typeof parsed !== 'object' || parsed === null) return {};
-	const error = (parsed as { error?: unknown }).error;
+	const envelope = parsed as Record<string, unknown>;
+	const error = envelope.error;
 	if (typeof error !== 'object' || error === null) return {};
 	const { code, message, details } = error as Record<string, unknown>;
-	return {
+	const parsedError: ApiErrorBody = {
 		code: typeof code === 'string' ? code : undefined,
 		message: typeof message === 'string' ? message : undefined,
 		details: Array.isArray(details)
@@ -156,6 +166,38 @@ export function parseApiErrorBody(body: unknown): ApiErrorBody {
 					.map((detail) => ({ field: detail.field, message: String(detail.message ?? '') }))
 			: undefined,
 	};
+	if (parsedError.code !== 'contact_exists') return parsedError;
+	if (typeof envelope.lead_id === 'string' && envelope.lead_id !== '') {
+		parsedError.leadId = envelope.lead_id;
+	}
+	if (Array.isArray(envelope.matched_by)) {
+		const matchedBy = envelope.matched_by.filter(
+			(entry): entry is string => typeof entry === 'string' && entry !== '',
+		);
+		if (matchedBy.length > 0) parsedError.matchedBy = matchedBy;
+	}
+	if (typeof envelope.existing_lead === 'object' && envelope.existing_lead !== null) {
+		parsedError.existingLead = envelope.existing_lead as IDataObject;
+	}
+	return parsedError;
+}
+
+/** The lead a `contact_exists` error carries, for callers that continue with it. */
+export interface ContactExistsConflict {
+	lead: IDataObject;
+	matchedBy: string[];
+	leadId?: string;
+}
+
+/**
+ * Reads a `contact_exists` conflict out of a node error, or `undefined` when
+ * the error is anything else or carries no lead (the token cannot see it).
+ */
+export function contactExistsFromError(error: unknown): ContactExistsConflict | undefined {
+	if (!(error instanceof NodeApiError)) return undefined;
+	const parsed = parseApiErrorBody(error.errorResponse);
+	if (parsed.code !== 'contact_exists' || parsed.existingLead === undefined) return undefined;
+	return { lead: parsed.existingLead, matchedBy: parsed.matchedBy ?? [], leadId: parsed.leadId };
 }
 
 function secondsToMs(value: string | undefined): number | undefined {
@@ -193,6 +235,44 @@ function isWrite(method: string | undefined): boolean {
 	return method !== undefined && !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
 }
 
+function isPhoneField(field: string): boolean {
+	return field.toLowerCase().includes('phone');
+}
+
+function isEmailField(field: string): boolean {
+	return field.toLowerCase().includes('email');
+}
+
+/** Which contact the duplicate is: from `matched_by`, falling back to `details`. */
+function matchedContact(apiError: ApiErrorBody): { phone: boolean; email: boolean } {
+	const fields = [...(apiError.matchedBy ?? []), ...(apiError.details ?? []).map((d) => d.field)];
+	return {
+		phone: fields.some(isPhoneField),
+		email: fields.some(isEmailField),
+	};
+}
+
+/** How the message names the duplicate contact: `phone`, `email` or `phone or email`. */
+function contactNoun(apiError: ApiErrorBody): string {
+	const { phone, email } = matchedContact(apiError);
+	if (phone && !email) return 'phone';
+	if (email && !phone) return 'email';
+	return 'phone or email';
+}
+
+/** Which contact matched, as a sentence for the description. */
+function matchedSentence(apiError: ApiErrorBody): string {
+	const { phone, email } = matchedContact(apiError);
+	if (phone && email) return 'The phone and email both matched.';
+	if (phone) return 'The phone matched.';
+	if (email) return 'The email matched.';
+	return 'A phone or email matched.';
+}
+
+function textOf(value: unknown): string | undefined {
+	return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
 /** Picks the English message, guidance and failure cause for a failed response. */
 export function describeNewarError(
 	response: FailedResponse,
@@ -204,7 +284,10 @@ export function describeNewarError(
 	const httpCode = String(statusCode);
 	const now = context.now ?? Date.now();
 	const code =
-		apiError.code === 'forbidden' && context.tokenScope === 'read' && isWrite(context.method)
+		apiError.code === 'forbidden' &&
+		context.tokenScope === 'read' &&
+		context.isRead !== true &&
+		isWrite(context.method)
 			? 'read_only_token'
 			: apiError.code;
 
@@ -350,6 +433,42 @@ export function describeNewarError(
 				),
 			};
 		}
+		case 'contact_exists': {
+			const noun = contactNoun(apiError);
+			const existing = apiError.existingLead;
+			const id = apiError.leadId ?? textOf(existing?.id);
+			if (existing === undefined) {
+				return {
+					code,
+					httpCode,
+					message: `This ${noun} already belongs to another lead`,
+					description: withNewarSaid(
+						'Good news: this contact is already in Newar, but this token cannot read the other lead. Ask a workspace owner to grant the token user the Leads permission.',
+						apiMessage,
+					),
+				};
+			}
+			const name = textOf(existing.name);
+			const details = [`ID ${id ?? 'unknown'}`];
+			const phone = textOf(existing.phone);
+			const email = textOf(existing.email);
+			if (phone) details.push(`phone ${phone}`);
+			if (email) details.push(`email ${email}`);
+			const link = id ? ` Open it at https://app.newar.com.br/leads/${id}.` : '';
+			const nextStep =
+				context.method?.toUpperCase() === 'PATCH'
+					? 'This phone or email belongs to the other lead. Remove it from this update or merge the two leads in Newar.'
+					: "Use Lead > Update with this ID, or set 'If Lead Already Exists' to 'Return Existing Lead'.";
+			return {
+				code,
+				httpCode,
+				message: `This ${noun} already belongs to the lead${name ? ` "${name}"` : ''}`,
+				description: withNewarSaid(
+					`Good news: this contact is already in Newar as the lead${name ? ` "${name}"` : ''} (${details.join(', ')}). ${matchedSentence(apiError)}${link} ${nextStep}`,
+					apiMessage,
+				),
+			};
+		}
 		case 'conflict': {
 			if (/idempot/i.test(apiMessage ?? '')) {
 				return {
@@ -368,7 +487,7 @@ export function describeNewarError(
 				httpCode,
 				message: "Newar refused the change because of the record's current state",
 				description: withNewarSaid(
-					"Common causes: the deal is the lead's primary deal (change its title, value, owner and next step with Lead > Update), the deal is closed (set 'Status' to Open to move it), the primary deal was deleted on its own (delete the lead instead), or a tag with this name already exists.",
+					"Common causes: a lead create or update with a phone or email that already belongs to another lead (search for that contact with Lead > Search and update the lead instead; newer Newar versions report this case as contact_exists with the lead), the deal is the lead's primary deal (change its title, value, owner and next step with Lead > Update), the deal is closed (set 'Status' to Open to move it), the primary deal was deleted on its own (delete the lead instead), or a tag with this name already exists.",
 					apiMessage,
 				),
 			};

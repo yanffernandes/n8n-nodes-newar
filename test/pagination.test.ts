@@ -65,13 +65,25 @@ describe('collectItems', () => {
 		expect(items).toEqual([1, 2, 3, 4]);
 	});
 
-	it('stops when a cursor repeats, so a broken API cannot loop forever', async () => {
+	it('fails instead of returning partial results when a cursor repeats', async () => {
 		const fetchPage = vi.fn(async () => ({ items: [1], nextCursor: 'same' }));
+
+		const result = collectItems(fetchPage, { returnAll: true, maxPageSize: 500 });
+
+		await expect(result).rejects.toThrow('repeated pagination cursor');
+		expect(fetchPage).toHaveBeenCalledTimes(2);
+	});
+
+	it('follows a cursor after an empty page', async () => {
+		const { fetchPage } = pagesOf([
+			{ items: [], nextCursor: 'a' },
+			{ items: [2], nextCursor: null },
+		]);
 
 		const items = await collectItems(fetchPage, { returnAll: true, maxPageSize: 500 });
 
+		expect(items).toEqual([2]);
 		expect(fetchPage).toHaveBeenCalledTimes(2);
-		expect(items).toEqual([1, 1]);
 	});
 });
 
@@ -87,6 +99,20 @@ describe('collectWithinBudget', () => {
 		});
 
 		expect(result).toEqual({ items: [1], complete: true });
+	});
+
+	it('reports a repeated cursor as incomplete', async () => {
+		const fetchPage = vi.fn(async () => ({ items: [1], nextCursor: 'same' }));
+
+		const result = await collectWithinBudget(fetchPage, {
+			pageSize: 500,
+			maxPages: 10,
+			deadline: Number.POSITIVE_INFINITY,
+			now: () => 0,
+		});
+
+		expect(result).toEqual({ items: [1, 1], complete: false });
+		expect(fetchPage).toHaveBeenCalledTimes(2);
 	});
 
 	it('stops at the page cap and reports an incomplete read', async () => {

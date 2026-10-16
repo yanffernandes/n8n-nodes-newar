@@ -57,6 +57,19 @@ describe('describeNewarError', () => {
 		expect(result.message).toBe('Your Newar user is not allowed to do this');
 	});
 
+	it('keeps a POST query read as a Leads permission error for a read-only token', () => {
+		const response = failure(403, 'forbidden');
+
+		const result = describeNewarError(response, {
+			method: 'POST',
+			isRead: true,
+			tokenScope: 'read',
+		});
+
+		expect(result.message).toBe('Your Newar user is not allowed to do this');
+		expect(result.description).toContain('Leads permission');
+	});
+
 	it('names the missing record in English', () => {
 		const response = failure(404, 'not_found', 'Negócio não encontrado.');
 
@@ -167,6 +180,16 @@ describe('describeNewarError', () => {
 		expect(result.description).toContain('Lead > Update');
 	});
 
+	it('lists a lead phone or email conflict first for a generic conflict', () => {
+		const response = failure(409, 'conflict', 'Já existe um registro com esses dados.');
+
+		const result = describeNewarError(response);
+
+		expect(result.description).toContain(
+			'Common causes: a lead create or update with a phone or email that already belongs to another lead',
+		);
+	});
+
 	it.each([
 		['plan_limit_reached', 409, 'The Newar plan limit was reached'],
 		['tag_in_use', 409, 'The tag is still in use'],
@@ -201,6 +224,7 @@ describe('describeNewarError', () => {
 		'rate_limit_exceeded',
 		'temporarily_unavailable',
 		'validation_error',
+		'contact_exists',
 		'conflict',
 		'bad_request',
 		'internal_error',
@@ -224,6 +248,90 @@ describe('describeNewarError', () => {
 	});
 });
 
+describe('describeNewarError contact_exists', () => {
+	const LEAD_ID = '0f8d3c2a-6b1e-4f7a-9c5d-2e4b8a1f6c3d';
+	const EXISTING_LEAD = {
+		id: LEAD_ID,
+		name: 'Wotson Valadão',
+		phone: '559193397569',
+		email: 'wotson@example.com',
+	};
+
+	function contactExists(matchedBy: string[], existingLead: unknown = EXISTING_LEAD) {
+		const body: Record<string, unknown> = {
+			success: false,
+			error: {
+				code: 'contact_exists',
+				message:
+					'Este telefone já pertence ao contato Wotson Valadão. Atualize esse contato em vez de criar outro.',
+				details: matchedBy.map((field) => ({
+					field,
+					message:
+						field === 'phone'
+							? 'Este telefone já pertence a outro lead.'
+							: 'Este e-mail já pertence a outro lead.',
+				})),
+			},
+			lead_id: LEAD_ID,
+			matched_by: matchedBy,
+		};
+		if (existingLead !== undefined && existingLead !== null) body.existing_lead = existingLead;
+		return { statusCode: 409, body };
+	}
+
+	it.each([
+		[['phone'], 'This phone already belongs to the lead "Wotson Valadão"'],
+		[['email'], 'This email already belongs to the lead "Wotson Valadão"'],
+		[['phone', 'email'], 'This phone or email already belongs to the lead "Wotson Valadão"'],
+		[[], 'This phone or email already belongs to the lead "Wotson Valadão"'],
+	])('names the contact of matched_by %s in the message', (matchedBy, message) => {
+		const result = describeNewarError(contactExists(matchedBy as string[]));
+
+		expect(result.message).toBe(message);
+	});
+
+	it('describes the existing lead with its data, the match and the next step', () => {
+		const result = describeNewarError(contactExists(['phone']), { method: 'POST' });
+
+		expect(result.description).toContain(`ID ${LEAD_ID}`);
+		expect(result.description).toContain('"Wotson Valadão"');
+		expect(result.description).toContain('phone 559193397569');
+		expect(result.description).toContain('email wotson@example.com');
+		expect(result.description).toContain('The phone matched.');
+		expect(result.description).toContain(`https://app.newar.com.br/leads/${LEAD_ID}`);
+		expect(result.description).toContain('Use Lead > Update with this ID');
+		expect(result.description).toContain("'If Lead Already Exists' to 'Return Existing Lead'");
+		expect(result.description).toContain('Newar said: "Este telefone já pertence ao contato');
+	});
+
+	it('gives Update a next step for the other lead that owns the contact', () => {
+		const result = describeNewarError(contactExists(['phone']), { method: 'PATCH' });
+
+		expect(result.description).toContain('Remove it from this update');
+		expect(result.description).toContain('merge the two leads in Newar');
+		expect(result.description).not.toContain("'If Lead Already Exists'");
+		expect(result.description).not.toContain('Use Lead > Update with this ID');
+	});
+
+	it.each([
+		[['email'], 'The email matched.'],
+		[['phone', 'email'], 'The phone and email both matched.'],
+	])('says which contact matched for %s', (matchedBy, sentence) => {
+		const result = describeNewarError(contactExists(matchedBy as string[]));
+
+		expect(result.description).toContain(sentence);
+	});
+
+	it('says the lead is hidden and suggests a wider token when existing_lead is missing', () => {
+		const result = describeNewarError(contactExists(['email'], null));
+
+		expect(result.message).toBe('This email already belongs to another lead');
+		expect(result.description).toContain('this token cannot read the other lead');
+		expect(result.description).toContain('grant the token user the Leads permission');
+		expect(result.description).toContain('Newar said: "Este telefone já pertence ao contato');
+	});
+});
+
 describe('parseApiErrorBody', () => {
 	it('reads a JSON string body', () => {
 		const body = JSON.stringify({ success: false, error: { code: 'not_found', message: 'x' } });
@@ -239,6 +347,39 @@ describe('parseApiErrorBody', () => {
 		const result = parseApiErrorBody(body);
 
 		expect(result).toEqual({});
+	});
+
+	it('reads the lead, match and id of a contact_exists body', () => {
+		const body = {
+			success: false,
+			error: { code: 'contact_exists', message: 'x' },
+			lead_id: 'lead-1',
+			matched_by: ['phone'],
+			existing_lead: { id: 'lead-1', name: 'Wotson' },
+		};
+
+		const result = parseApiErrorBody(body);
+
+		expect(result).toMatchObject({
+			code: 'contact_exists',
+			leadId: 'lead-1',
+			matchedBy: ['phone'],
+			existingLead: { id: 'lead-1', name: 'Wotson' },
+		});
+	});
+
+	it('ignores contact fields on other error codes', () => {
+		const body = {
+			success: false,
+			error: { code: 'conflict', message: 'x' },
+			lead_id: 'lead-1',
+			existing_lead: { id: 'lead-1' },
+		};
+
+		const result = parseApiErrorBody(body);
+
+		expect(result.leadId).toBeUndefined();
+		expect(result.existingLead).toBeUndefined();
 	});
 });
 
