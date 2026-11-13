@@ -29,8 +29,23 @@ function isDateTimeLike(value: unknown): value is DateTimeLike {
 	);
 }
 
+function utcEpochMs(
+	year: number,
+	month: number,
+	day: number,
+	hour = 0,
+	minute = 0,
+	second = 0,
+	millisecond = 0,
+): number {
+	const date = new Date(0);
+	date.setUTCFullYear(year, month - 1, day);
+	date.setUTCHours(hour, minute, second, millisecond);
+	return date.getTime();
+}
+
 function isValidCalendarDate(year: number, month: number, day: number): boolean {
-	const date = new Date(Date.UTC(year, month - 1, day));
+	const date = new Date(utcEpochMs(year, month, day));
 	return (
 		date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
 	);
@@ -53,9 +68,9 @@ export function timeZoneOffsetMs(epochMs: number, timeZone: string): number {
 		if (part.type !== 'literal') parts[part.type] = Number(part.value);
 	}
 	const hour = parts.hour === 24 ? 0 : parts.hour;
-	const wallClockAsUtc = Date.UTC(
+	const wallClockAsUtc = utcEpochMs(
 		parts.year,
-		parts.month - 1,
+		parts.month,
 		parts.day,
 		hour,
 		parts.minute,
@@ -71,7 +86,7 @@ export function wallClockToEpochMs(
 	timeZone: string,
 ): number {
 	const [year, month, day, hour, minute, second, millisecond] = fields;
-	const asUtc = Date.UTC(year, month - 1, day, hour, minute, second, millisecond);
+	const asUtc = utcEpochMs(year, month, day, hour, minute, second, millisecond);
 	let offset: number;
 	try {
 		offset = timeZoneOffsetMs(asUtc, timeZone);
@@ -91,6 +106,30 @@ function calendarDateInZone(epochMs: number, timeZone: string): string {
 		shifted = epochMs;
 	}
 	return new Date(shifted).toISOString().slice(0, 10);
+}
+
+/** First representable instant belonging to a calendar date in the given zone. */
+function startOfCalendarDate(
+	year: number,
+	month: number,
+	day: number,
+	timeZone: string,
+): number | null {
+	const utcMidnight = utcEpochMs(year, month, day);
+	const offsets = new Set<number>();
+	for (const hours of [-36, -12, 0, 12, 36]) {
+		try {
+			offsets.add(timeZoneOffsetMs(utcMidnight + hours * 60 * 60 * 1000, timeZone));
+		} catch {
+			return utcMidnight;
+		}
+	}
+
+	const date = new Date(utcMidnight).toISOString().slice(0, 10);
+	const candidates = [...offsets]
+		.map((offset) => utcMidnight - offset)
+		.filter((candidate) => calendarDateInZone(candidate, timeZone) === date);
+	return candidates.length > 0 ? Math.min(...candidates) : null;
 }
 
 function unwrap(value: unknown): unknown {
@@ -122,7 +161,8 @@ export function toIsoDateTime(value: unknown, timeZone = 'UTC'): string | null |
 	if (dateOnly) {
 		const [year, month, day] = [Number(dateOnly[1]), Number(dateOnly[2]), Number(dateOnly[3])];
 		if (!isValidCalendarDate(year, month, day)) return null;
-		return new Date(wallClockToEpochMs([year, month, day, 0, 0, 0, 0], timeZone)).toISOString();
+		const start = startOfCalendarDate(year, month, day, timeZone);
+		return start === null ? null : new Date(start).toISOString();
 	}
 
 	const naive = NAIVE_DATE_TIME.exec(text);

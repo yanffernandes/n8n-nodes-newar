@@ -1,0 +1,149 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://newar.com.br/contracts/filter-expression-v1.schema.json",
+	"$ref": "#/definitions/FilterExpression",
+	"definitions": {
+		"ScalarValue": {
+			"anyOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
+		},
+		"ScalarArray": {
+			"type": "array",
+			"minItems": 1,
+			"items": { "$ref": "#/definitions/ScalarValue" }
+		},
+		"NumericRange": {
+			"type": "object",
+			"required": ["from", "to"],
+			"additionalProperties": false,
+			"properties": { "from": { "type": "number" }, "to": { "type": "number" } }
+		},
+		"StringRange": {
+			"type": "object",
+			"required": ["from", "to"],
+			"additionalProperties": false,
+			"properties": { "from": { "type": "string" }, "to": { "type": "string" } }
+		},
+		"Duration": {
+			"type": "object",
+			"required": ["amount", "unit"],
+			"additionalProperties": false,
+			"properties": {
+				"amount": { "type": "number", "exclusiveMinimum": 0 },
+				"unit": { "type": "string", "enum": ["seconds", "minutes", "hours", "days"] }
+			}
+		},
+		"CalendarPeriod": {
+			"type": "object",
+			"required": ["period", "timeZone"],
+			"additionalProperties": false,
+			"properties": {
+				"period": {
+					"type": "string",
+					"enum": ["today", "yesterday", "this_week", "last_week", "this_month", "last_month"]
+				},
+				"timeZone": { "type": "string", "minLength": 1, "maxLength": 128 }
+			}
+		},
+		"Operand": {
+			"anyOf": [
+				{ "$ref": "#/definitions/ScalarValue" },
+				{ "$ref": "#/definitions/ScalarArray" },
+				{ "$ref": "#/definitions/NumericRange" },
+				{ "$ref": "#/definitions/StringRange" },
+				{ "$ref": "#/definitions/Duration" },
+				{ "$ref": "#/definitions/CalendarPeriod" }
+			]
+		},
+		"ScalarExpression": {
+			"type": "object",
+			"required": ["kind", "field", "operator"],
+			"additionalProperties": false,
+			"properties": {
+				"kind": { "const": "scalar" },
+				"field": { "type": "string", "minLength": 1, "maxLength": 256 },
+				"operator": {
+					"enum": [
+						"eq",
+						"neq",
+						"in",
+						"not_in",
+						"contains",
+						"not_contains",
+						"starts_with",
+						"ends_with",
+						"gt",
+						"gte",
+						"lt",
+						"lte",
+						"between",
+						"is_null",
+						"is_not_null",
+						"is_empty",
+						"is_not_empty",
+						"contains_any",
+						"contains_all",
+						"contains_none",
+						"before",
+						"on_or_before",
+						"after",
+						"on_or_after",
+						"older_than",
+						"newer_than",
+						"within_last",
+						"within_next",
+						"calendar_period",
+						"is_missing",
+						"is_present"
+					]
+				},
+				"value": { "$ref": "#/definitions/Operand" }
+			}
+		},
+		"AllExpression": {
+			"type": "object",
+			"required": ["kind", "items"],
+			"additionalProperties": false,
+			"properties": {
+				"kind": { "const": "all" },
+				"items": {
+					"type": "array",
+					"minItems": 1,
+					"maxItems": 100,
+					"items": { "$ref": "#/definitions/Expr" }
+				}
+			}
+		},
+		"AnyExpression": {
+			"type": "object",
+			"required": ["kind", "items"],
+			"additionalProperties": false,
+			"properties": {
+				"kind": { "const": "any" },
+				"items": {
+					"type": "array",
+					"minItems": 1,
+					"maxItems": 100,
+					"items": { "$ref": "#/definitions/Expr" }
+				}
+			}
+		},
+		"Expr": {
+			"oneOf": [
+				{ "$ref": "#/definitions/AllExpression" },
+				{ "$ref": "#/definitions/AnyExpression" },
+				{ "$ref": "#/definitions/ScalarExpression" }
+			]
+		},
+		"FilterExpression": {
+			"type": "object",
+			"required": ["contract", "version", "root", "where"],
+			"additionalProperties": false,
+			"properties": {
+				"contract": { "const": "newar.filter" },
+				"version": { "const": 1 },
+				"root": { "type": "string", "minLength": 1, "maxLength": 256 },
+				"where": { "$ref": "#/definitions/Expr" }
+			}
+		}
+	}
+}

@@ -20,6 +20,8 @@ export interface ExecutionContext {
 	idempotency: Omit<IdempotencySource, 'itemIndex'>;
 	/** Turns owner and assignee emails or names into user IDs, reading the users at most once. */
 	resolveUser: UserResolver;
+	/** Cached custom lead-field definitions shared by Conditions searches in this execution. */
+	leadFilterFields?: Promise<IDataObject[]>;
 }
 
 export type OperationResult = IDataObject | IDataObject[];
@@ -325,10 +327,7 @@ export async function createRecord(
 	const key =
 		customKey.trim() !== ''
 			? customIdempotencyKey(path, customKey)
-			: deriveIdempotencyKey(
-					{ ...context.idempotency, itemIndex },
-					{ method: 'POST', path },
-				);
+			: deriveIdempotencyKey({ ...context.idempotency, itemIndex }, { method: 'POST', path });
 	const response = await newarApiRequest.call(this, {
 		method: 'POST',
 		path,

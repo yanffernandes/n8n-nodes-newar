@@ -141,13 +141,30 @@ export function locator(value: string) {
 	return { __rl: true, mode: 'id', value };
 }
 
-export function loadOptionsContext(options: CommonOptions & { currentParameters?: IDataObject }) {
+export function loadOptionsContext(
+	options: CommonOptions & {
+		currentParameters?: IDataObject;
+		currentParameterPath?: string;
+	},
+) {
 	const { requests, httpRequestWithAuthentication } = requestRecorder(options.respond);
 	const current = options.currentParameters ?? {};
+	const currentParameterPath =
+		options.currentParameterPath ??
+		'parameters.filterGroups.group.0.conditions.condition.0.operator';
+	const getCurrentParameter = (parameterPath: string): unknown => {
+		const resolvedPath = parameterPath.startsWith('&')
+			? `${currentParameterPath.split('.').slice(1, -1).join('.')}.${parameterPath.slice(1)}`
+			: parameterPath;
+		return resolvedPath.split('.').reduce<unknown>((value, key) => {
+			if (typeof value !== 'object' || value === null) return undefined;
+			return (value as Record<string, unknown>)[key];
+		}, current);
+	};
 	const context = {
 		getNode: () => NODE,
 		getCurrentNodeParameter: (name: string, parameterOptions?: { extractValue?: boolean }) => {
-			const value = current[name];
+			const value = getCurrentParameter(name);
 			return parameterOptions?.extractValue ? locatorValue(value) : value;
 		},
 		getNodeParameter: (name: string, fallback?: unknown) =>

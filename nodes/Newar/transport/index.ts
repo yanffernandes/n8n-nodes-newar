@@ -7,7 +7,7 @@ import type {
 	IPollFunctions,
 	JsonObject,
 } from 'n8n-workflow';
-import { NodeApiError } from 'n8n-workflow';
+import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
 import { describeNewarError, getHeader, tokenScopeOf, type HeaderBag } from '../helpers/errors';
 import { collectItems, type Page } from '../helpers/pagination';
@@ -28,6 +28,8 @@ export interface NewarRequest {
 	method: IHttpRequestMethods;
 	/** Path after the base URL, starting with `/v1`. */
 	path: string;
+	/** Marks POST endpoints that read data so read-only tokens get permission guidance. */
+	isRead?: boolean;
 	qs?: IDataObject;
 	body?: IDataObject;
 	headers?: Record<string, string>;
@@ -37,6 +39,7 @@ export interface NewarRequest {
 export interface NewarResponse<T> {
 	data: T;
 	nextCursor: string | null;
+	additionalData?: IDataObject;
 	headers: HeaderBag;
 	statusCode: number;
 }
@@ -123,7 +126,11 @@ export async function newarApiRequest<T = unknown>(
 	if (response.statusCode >= 400) {
 		const described = describeNewarError(
 			{ statusCode: response.statusCode, body: response.body, headers },
-			{ method: request.method, tokenScope: tokenScopeOf(credentials.apiToken) },
+			{
+				method: request.method,
+				isRead: request.isRead,
+				tokenScope: tokenScopeOf(credentials.apiToken),
+			},
 		);
 		throw new NodeApiError(this.getNode(), toErrorResponse(response.body, response.statusCode), {
 			message: described.message,
@@ -142,11 +149,12 @@ export async function newarApiRequest<T = unknown>(
 
 	const envelope = (response.body ?? {}) as {
 		data?: T;
-		additional_data?: { next_cursor?: string | null };
+		additional_data?: IDataObject & { next_cursor?: string | null };
 	};
 	return {
 		data: envelope.data as T,
 		nextCursor: envelope.additional_data?.next_cursor ?? null,
+		additionalData: envelope.additional_data,
 		headers,
 		statusCode: response.statusCode,
 	};
@@ -154,7 +162,12 @@ export async function newarApiRequest<T = unknown>(
 
 export interface ListRequest {
 	path: string;
+	/** Defaults to GET. Filter queries use POST with a JSON body. */
+	method?: IHttpRequestMethods;
+	/** Marks a POST list endpoint as a read for token permission errors. */
+	isRead?: boolean;
 	qs?: IDataObject;
+	body?: IDataObject;
 	itemIndex?: number;
 	/** Page size limit of the endpoint. */
 	maxPageSize?: number;
@@ -171,7 +184,22 @@ export async function newarApiRequestAllItems(
 	const maxPageSize = request.maxPageSize ?? LIST_PAGE_SIZE;
 	return await collectItems<IDataObject>(
 		async (cursor, pageSize) => await fetchPage.call(this, request, cursor, pageSize),
-		{ returnAll: options.returnAll, limit: options.limit, maxPageSize },
+		{
+			returnAll: options.returnAll,
+			limit: options.limit,
+			maxPageSize,
+			onRepeatedCursor: () => {
+				throw new NodeOperationError(
+					this.getNode(),
+					'Newar returned a repeated pagination cursor, so the results may be incomplete.',
+					{
+						itemIndex: request.itemIndex,
+						description:
+							'No partial results were returned. Contact Newar API support with this execution ID.',
+					},
+				);
+			},
+		},
 	);
 }
 
@@ -182,18 +210,59 @@ export async function fetchPage(
 	cursor: string | undefined,
 	pageSize: number,
 ): Promise<Page<IDataObject>> {
+	const method = request.method ?? 'GET';
 	const response = await newarApiRequest.call(this, {
-		method: 'GET',
+		method,
 		path: request.path,
-		qs: { ...request.qs, limit: pageSize, cursor },
+		isRead: request.isRead,
+		...(method === 'GET'
+			? { qs: { ...request.qs, limit: pageSize, cursor } }
+			: {
+					qs: request.qs,
+					body: {
+						...request.body,
+						limit: pageSize,
+						...(cursor ? { cursor } : {}),
+					},
+				}),
 		itemIndex: request.itemIndex,
 	});
-	const data = response.data as unknown;
-	const items =
-		request.itemsAt === 'data.items'
-			? ((data as { items?: IDataObject[] } | undefined)?.items ?? [])
-			: Array.isArray(data)
-				? (data as IDataObject[])
-				: [];
-	return { items, nextCursor: response.nextCursor };
+	const data: unknown = response.data;
+	const itemCandidate = request.itemsAt === 'data.items' && isRecord(data) ? data.items : data;
+	if (!Array.isArray(itemCandidate) || !itemCandidate.every(isRecord)) {
+		throw new NodeOperationError(this.getNode(), 'Newar returned an unexpected list response', {
+			itemIndex: request.itemIndex,
+			description: `Expected ${request.itemsAt === 'data.items' ? 'data.items' : 'data'} to be an array of records.`,
+		});
+	}
+	const additionalData: unknown = response.additionalData;
+	if (
+		!isRecord(additionalData) ||
+		!Object.prototype.hasOwnProperty.call(additionalData, 'next_cursor')
+	) {
+		throw new NodeOperationError(
+			this.getNode(),
+			'Newar returned an unexpected pagination response',
+			{
+				itemIndex: request.itemIndex,
+				description: 'Expected additional_data.next_cursor to be present for a list response.',
+			},
+		);
+	}
+	const nextCursor: unknown = additionalData.next_cursor;
+	if (nextCursor !== null && (typeof nextCursor !== 'string' || nextCursor.length === 0)) {
+		throw new NodeOperationError(
+			this.getNode(),
+			'Newar returned an unexpected pagination response',
+			{
+				itemIndex: request.itemIndex,
+				description: 'Expected additional_data.next_cursor to be a non-empty string or null.',
+			},
+		);
+	}
+	return { items: itemCandidate as IDataObject[], nextCursor: nextCursor as string | null };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
