@@ -340,6 +340,10 @@ function readLeadFilterFields(
 			}
 			return response.data as IDataObject[];
 		});
+	// A failed request must not be cached: later items would reuse its error and itemIndex.
+	context.leadFilterFields.catch(() => {
+		context.leadFilterFields = undefined;
+	});
 	return context.leadFilterFields;
 }
 

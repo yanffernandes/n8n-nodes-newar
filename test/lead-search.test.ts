@@ -20,7 +20,14 @@ import {
 	getLeadFilterOperators,
 	getLeadInstagramFields,
 } from '../nodes/Newar/methods/loadOptions';
-import { executeContext, LEAD_ID, loadOptionsContext, ok, type Responder } from './support/context';
+import {
+	apiError,
+	executeContext,
+	LEAD_ID,
+	loadOptionsContext,
+	ok,
+	type Responder,
+} from './support/context';
 
 const LEAD = { id: LEAD_ID, name: 'Ana Souza', email: 'ana@example.com', phone: '5511999990000' };
 
@@ -935,6 +942,36 @@ describe('Lead > Search by Conditions', () => {
 
 		expect(error).toBeInstanceOf(NodeOperationError);
 		expect((error as NodeOperationError).message).toContain('unexpected lead field list');
+	});
+
+	it('does not reuse a failed custom field request for the next items', async () => {
+		const parameter = {
+			resource: 'lead',
+			operation: 'search',
+			searchBy: 'conditions',
+			filterGroups: groups([{ field: 'cf:segment', operator: 'eq', value: 'A' }]),
+		};
+		let fieldCalls = 0;
+		const { context, requests } = executeContext({
+			parameters: [parameter, parameter],
+			items: 2,
+			continueOnFail: true,
+			respond: (request) => {
+				if (request.url.endsWith('/v1/lead-fields')) {
+					fieldCalls += 1;
+					return fieldCalls === 1
+						? apiError(400, 'bad_request')
+						: ok([{ id: 'segment', key: 'segment', name: 'Segment', type: 'text' }]);
+				}
+				return ok([LEAD]);
+			},
+		});
+
+		const output = await router.call(context);
+
+		expect(requests.filter((request) => request.url.endsWith('/v1/lead-fields'))).toHaveLength(2);
+		expect(output[0][0].json.error).toBeDefined();
+		expect(output[0][1].json.error).toBeUndefined();
 	});
 
 	it('uses the relative sibling field dependency in the editor', () => {
